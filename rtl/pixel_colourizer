@@ -1,0 +1,151 @@
+`timescale 1ns / 1ps
+
+module Pixel_Colourizer(
+
+    input logic clk,
+    input logic rst,
+    input logic [23:0]passed,
+    input logic done,
+    input logic o_busy,
+    input logic [7:0]o_data,
+    output logic [14:0]i_addr,
+    output logic i_transmit,
+    output logic [7:0]i_data
+    
+    );
+    
+    logic [7:0]WR;
+    logic [7:0]WG;
+    logic [7:0]WB;
+    logic [7:0]R;
+    logic [7:0]G;
+    logic [7:0]B;
+    logic [2:0]order;
+    
+    
+    typedef enum logic [3:0] {
+    
+        S_RST,
+        S_IDLE,
+        S_RECEIVED,
+        S_NEWPIXEL,
+        S_COLOURIZE,
+        S_WAIT,
+        S_TRANSMIT, 
+        S_PULSE
+    
+    }state_t;
+    
+    state_t state, next_state;
+    
+    always_ff @(posedge clk)begin
+        if(rst)begin
+            i_transmit <= 0;
+            i_data <= 0;
+            i_addr <= 0;
+            order <= 0;
+            state <= S_IDLE;
+        end
+        
+        state <= next_state;
+        case(state)
+        
+        S_RST: begin
+            i_transmit <= 0;
+            i_data <= 0;
+            i_addr <= 0;
+            WR <= 8'b00010000;
+            WG <= 8'b00010000;
+            WB <= 8'b00010000;
+        end
+        
+        S_IDLE: begin
+           
+        end
+        
+        S_RECEIVED: begin
+            if(passed[23:16] == 8'b01110010)begin
+                WR <= (10*(passed[15:8]-8'b00110000)) + (passed[7:0]-8'b00110000);
+            end
+            if(passed[23:16] == 8'b01100111)begin
+                WG <= (10*(passed[15:8]-8'b00110000)) + (passed[7:0]-8'b00110000);
+            end
+            if(passed[23:16] == 8'b01100010)begin
+                WB <= (10*(passed[15:8]-8'b00110000)) + (passed[7:0]-8'b00110000);
+            end
+        end
+        
+        S_NEWPIXEL: begin
+        order <= 0;
+        if(i_addr != 14'd16383)begin
+           R <= o_data*(WR >> 4);
+           G <= o_data*(WG >> 4);
+           B <= o_data*(WB >> 4);
+           end
+        end
+        
+        S_TRANSMIT: begin
+        i_transmit <= 1;
+        if(order == 0)begin
+            i_data <= R;
+        end
+        if(order == 1)begin
+            i_data <= G;
+            end
+        if(order == 2)begin
+            i_data <= B;
+            end
+        end
+        
+        S_PULSE:begin
+            i_transmit <= 0;
+            order <= order + 1;
+            if(order == 3) i_addr <= i_addr + 1;
+        end
+        
+        endcase
+    end
+    
+    always_comb begin
+    
+    next_state <= S_IDLE;
+    
+    case(state)
+    
+    S_RST:begin
+        next_state <= S_IDLE;
+    end 
+    
+    S_IDLE: begin
+        if(done)next_state <= S_RECEIVED;
+        else next_state <= S_IDLE;
+    end 
+    
+    S_RECEIVED: begin
+        if(passed[23:16] == 8'b01110011) next_state <= S_NEWPIXEL;
+        else next_state <= S_IDLE;
+    end
+    
+    S_NEWPIXEL: begin
+        if(o_busy) next_state <= S_WAIT;
+        else next_state <= S_TRANSMIT;
+    end
+    
+    S_WAIT: begin
+        if(!o_busy) next_state <= S_TRANSMIT;
+        else next_state <= S_WAIT;
+    end
+    
+    S_TRANSMIT: begin        
+        if(i_addr == 14'd16383) next_state <= S_RST;         
+        else next_state <= S_PULSE; 
+    end
+    
+    S_PULSE:begin 
+        if(order == 3) next_state <= S_NEWPIXEL;
+        else next_state <= S_TRANSMIT;
+    end
+    
+    endcase
+    end
+endmodule
