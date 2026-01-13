@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+
 module Command_encoder(
     input logic clk,
     input logic rst,
@@ -7,83 +8,117 @@ module Command_encoder(
     output logic [23:0] passed,
     output logic done
 );
-
+    
     logic passthrough;
-    logic [7:0] sample;
-
+    logic [7:0]sample;
+    logic transit_pause;
+    
     typedef enum logic [3:0] {
-        S_RST, S_IDLE, S_START, S_COLOUR, S_WEIGHT, S_STOP, S_DONE
+        S_RST,
+        S_IDLE,     
+        S_START,     
+        S_COLOUR, 
+        S_WEIGHT,     
+        S_STOP, 
+        S_DONE   
     } state_t;
 
-    state_t state, next_state;
-
-    always_ff @(posedge clk) begin
-        if (rst) begin
+    state_t state;
+    state_t next_state;
+    
+    always_ff @(posedge clk)begin
+        if(rst) begin
             passed <= 0;
             state <= S_RST;
-        end else begin
-            state <= next_state;
-
-        case (state)
-            S_RST: begin
-                passthrough <= 0;
-                passed <= 0;
-                done <= 0;
-                sample <= 0;
+        end
+        else begin
+        state <= next_state;
+        
+        case(state)
+        
+        S_RST: begin
+            passthrough <=0;
+            passed <= 0;
+            done <=0 ;
+            sample <= 0;
+        end
+        
+        S_IDLE: begin
+            if(o_strobe) sample <= o_data;
+        end
+        
+        S_START: begin
+            
+        end
+        
+        S_COLOUR: begin
+            if(passed[23:16] == 0) begin
+                passed[23:16] <= sample;
+                passthrough <= ~passthrough;
             end
-
-            S_IDLE: begin
-                if (o_strobe) sample <= o_data;
-            end
-
-            S_COLOUR: begin
-                if (passed[23:16] == 0) begin
-                    passed[23:16] <= sample;
-                    passthrough <= ~passthrough;
-                end
-            end
-
-            S_WEIGHT: begin
-                if (passed[15:8] == 0 && sample < 8'b00110100)
-                passed[15:8] <= sample;
-                else if (passed[15:8] != 0 && passed[7:0] == 0) begin
-                    if (passed[15:8] != 8'b00110011)
-                    passed[7:0] <= sample;
-                    else if (sample < 8'b00110010)
-                        passed[7:0] <= sample;
-                end
-            end
-
-            S_STOP: begin
-                if (!passthrough) passed[23:16] <= sample;
-            end
-
-            S_DONE: begin
-                done <= 1;
-            end
+        end
+        
+        S_WEIGHT: begin
+             if(passed[15:8] == 0 && sample < 8'b00110100) passed[15:8] <= sample;
+             else if(passed[15:8] != 0 && passed[7:0] == 0) 
+                    if(passed[15:8] != 8'b00110011)passed[7:0] <= sample;
+                    else if(sample < 8'b00110010)passed[7:0] <= sample;
+        end         
+        
+        S_STOP: begin
+            if(!passthrough) passed[23:16] <= sample;
+        end 
+        
+        S_DONE: begin
+            done <= 1;
+        end
         endcase
         end
     end
-
+    
     always_comb begin
-        next_state = S_RST;
-
-        case (state)
-            S_RST: next_state = S_IDLE;
-            S_IDLE: next_state = o_strobe ? S_START : S_IDLE;
-            S_START: begin
-                if (sample == 8'b01110010 || sample == 8'b01100111 || sample == 8'b01100010)
-                    next_state = S_COLOUR;
-                else if (passthrough && (sample > 8'b00101111 && sample < 8'b00111010))
-                    next_state = S_WEIGHT;
-                else if (sample == 8'b01110011)
-                    next_state = S_STOP;
-                else if (sample == 0)
-                    next_state = S_DONE;
-                else
-                    next_state = S_IDLE;
+    
+    next_state = S_RST;
+    
+    case(state)
+    
+        S_RST: begin
+            next_state =S_IDLE;
+        end
+        
+        S_IDLE: begin
+            if(o_strobe) next_state = S_START;
+            else next_state = S_IDLE;
+        end
+       
+        S_START: begin
+            if(sample == 8'b01110010 || sample == 8'b01100111 || sample == 8'b01100010) next_state = S_COLOUR;
+            else if(passthrough && (sample > 8'b00101111 && sample < 8'b00111010)) next_state = S_WEIGHT;
+            else if(sample == 8'b01110011) next_state = S_STOP;
+            else if(sample == 8'b00001101) next_state = S_DONE;
+            else next_state = S_IDLE;
+        end
+        
+        S_COLOUR: begin
+            next_state = S_IDLE;
+        end
+        
+        S_WEIGHT: begin
+            next_state = S_IDLE;
+        end
+        
+        S_STOP: begin 
+            next_state = S_IDLE;
+        end
+        
+        S_DONE: begin
+            if(transit_pause == 0) begin
+            transit_pause = transit_pause + 1;
+            next_state = S_DONE;
             end
-            default: next_state = S_IDLE;
-        endcase
-    end
-endmodule
+            else next_state = S_RST;
+        end
+   endcase 
+   end
+   
+endmodule 
