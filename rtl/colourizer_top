@@ -1,35 +1,35 @@
 `timescale 1ns / 1ps
-
 module colorizer_top (
     input logic i_sys_clk,
     input logic i_rst,
-
-    // UART pins
-    input  logic i_uart_rx_in,
+    input logic i_uart_rx_in,
     output logic o_uart_tx_out
 );
-
     logic tick_16x;
     logic transmit;
     logic clk;
     logic busy;
     logic [7:0] output_data;
     logic [7:0] input_data;
+    logic [7:0] B_o_data;
+    logic [7:0] i_data;
     logic o_strobe;
     logic o_busy;
+    logic [14:0] i_addr;
     logic i_transmit;
-    
-    // Clock generator module
+    logic [23:0] passed;
+    logic done;
+
     clk_wiz_0 clock_gen (
         .clk_in1 (i_sys_clk),
-        .reset   (i_rst),
+        .reset (i_rst),
         .clk_out1(clk)
     );
-    
+
     baud_gen u_baud (
-        .clk(clk),
-        .rst(i_rst),
-        .tick_16x(tick_16x)
+        .i_clk(clk),
+        .i_rst(i_rst),
+        .o_tick_16x(tick_16x)
     );
 
     uart_receiver receiver (
@@ -40,17 +40,43 @@ module colorizer_top (
         .o_data(output_data),
         .o_strobe(o_strobe)
     );
-    
+
     uart_transmitter transmitter (
         .i_clk(clk),
         .i_rst(i_rst),
         .i_tick_16x(tick_16x),
-        .o_uart_rx_out(o_uart_rx_out),
+        .o_uart_tx_out(o_uart_tx_out),
         .i_transmit(i_transmit),
         .i_data(input_data),
         .o_busy(o_busy)
     );
-    
-    colorizer colorizer();
 
+    memory_bram bram(
+        .i_clk(clk),
+        .i_rst(i_rst),
+        .i_addr(i_addr),
+        .o_data(B_o_data)
+    );
+
+    Command_encoder enc(
+        .clk(clk),
+        .rst(i_rst),
+        .o_data(output_data),
+        .o_strobe(o_strobe),
+        .passed(passed),
+        .done(done)
+    );
+
+    Pixel_Colourizer col(
+        .clk(clk),
+        .rst(i_rst),
+        .passed(passed),
+        .done(done),
+        .o_busy(o_busy),
+        .o_data(B_o_data),
+        .i_addr(i_addr),
+        .i_transmit(i_transmit),
+        .i_data(i_data)
+    );
+    
 endmodule
