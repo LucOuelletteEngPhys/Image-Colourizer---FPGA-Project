@@ -1,5 +1,5 @@
 # Image-Colouizer---FPGA-Project
-FPGA-based image colourizer 
+FPGA-based image colourizer.
 
 ## Overview
 Multi-module FPGA-based image colourizer that reads grayscale image data from
