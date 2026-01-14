@@ -3,17 +3,22 @@ FPGA-based image colourizer with SystemVerilog RTL and UART streaming
 
 ## Overview
 Multi-module FPGA-based image colourizer that reads grayscale image data from
-BRAM, computes weighted RGB colour components from user input, and streams 
-pixel data to host over UART.
+BRAM, computes weighted RGB colour components from user input and streams 
+pixel data to a host computer over UART. The design shown here is the colourizer 
+core, made up of the command_encoder module for interpreting user input from UART 
+receiver, pixel_colourizer module for calculation of RGB weights, reading pixel data
+from memory, and "colouring" pixels. The system was successfully implemented on hardware.
 
 ## Design Principles
-- System-level RTL Architecture
+- FSM + Datapath RTL Design
 - FSM-Controlled dataflow
 - Backpressure and flow control
+- System-level RTL Architecture
+- System-level Integration
 - Hardware validation on FPGA
 
 ## Architecture
-(add block diagram)
+
 
 ## Design/Implementation Tools
 - SystemVerilog
