@@ -18,7 +18,7 @@ from memory, and "colouring" pixels. The system was successfully implemented on 
 - Hardware validation on FPGA
 
 ## Architecture
-![System block diagram](docs/images/Image_colourizer_block_diagaram.jpg)
+![System block diagram](docs/images/Image_colourizer_block_diagaram_revised.drawio.png)
 
 ## Design/Implementation Tools
 - SystemVerilog
