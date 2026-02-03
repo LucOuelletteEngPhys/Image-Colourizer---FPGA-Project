@@ -1,4 +1,4 @@
-# Image-Colouizer---FPGA-Project
+# Image-Colourizer---FPGA-Project
 FPGA-based image colourizer.
 
 ## Overview
